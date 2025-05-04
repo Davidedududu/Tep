@@ -1,0 +1,45 @@
+#include <stdio.h>
+ #include <stdlib.h>
+ #include <unistd.h>
+ #include <fcntl.h>
+ #include <sys/stat.h>
+ #include <string.h>
+ #include <sys/wait.h>
+
+#define FIFO_PATH "/tmp/General"
+
+void child_listen() {
+ int fifo_fd = open(FIFO_PATH, O_RDONLY);
+ char buffer[256];
+ while (1) {
+ int bytes_read = read(fifo_fd, buffer, sizeof(buffer));
+ if (bytes_read > 0) {
+ printf("RECEIVED: %s", buffer);
+ }
+ }
+ }
+
+int main() {
+ int fifo_fd = open(FIFO_PATH, O_WRONLY);
+ if (fifo_fd == -1) {
+ printf("FAILED TO OPEN FIFO. IS THE SERVER RUNNING?\n");
+ exit(1);
+ }
+
+ pid_t pid = fork();
+ if (pid == 0) {
+ child_listen();
+ } else {
+ char input[256];
+ while (1) {
+ fgets(input, sizeof(input), stdin);
+ if (strcmp(input, "exit\n") == 0) {
+ break;
+ }
+ write(fifo_fd, input, strlen(input) + 1);
+ }
+ close(fifo_fd);
+ }
+ return 0;
+ }
+
